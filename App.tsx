@@ -97,7 +97,7 @@ const App: React.FC = () => {
   };
 
   if (!currentUser) {
-    return <LandingPage onAuthSuccess={handleLogin} />;
+    return <LandingPage onAuthSuccess={handleLogin} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} />;
   }
 
   return (
