@@ -191,7 +191,7 @@ const App: React.FC = () => {
                 if (order) syncEntity('orders', {...order, status: s}, setOrders);
               }}
               onArchive={id => {
-                const order = order = orders.find(o => o.id === id);
+                const order = orders.find(o => o.id === id);
                 if (order) syncEntity('orders', {...order, archived: true}, setOrders);
               }}
               onRestore={id => {
@@ -281,5 +281,4 @@ const App: React.FC = () => {
   );
 };
 
-// Fix for index.tsx: Module has no default export
 export default App;
