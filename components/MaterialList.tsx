@@ -1,12 +1,14 @@
+
 import React, { useState } from 'react';
 import { Material } from '../types';
 
 interface MaterialListProps {
   materials: Material[];
-  setMaterials: React.Dispatch<React.SetStateAction<Material[]>>;
+  onSave: (material: Material) => void;
+  onDelete: (id: string) => void;
 }
 
-const MaterialList: React.FC<MaterialListProps> = ({ materials, setMaterials }) => {
+const MaterialList: React.FC<MaterialListProps> = ({ materials, onSave, onDelete }) => {
   const [showForm, setShowForm] = useState(false);
   const [layoutMode, setLayoutMode] = useState<'grid' | 'list'>('grid');
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
@@ -27,23 +29,14 @@ const MaterialList: React.FC<MaterialListProps> = ({ materials, setMaterials }) 
   const handleSave = () => {
     if (!form.name) return;
 
-    if (editingMaterial) {
-      setMaterials(prev => prev.map(m => m.id === editingMaterial.id ? { ...m, ...form } as Material : m));
-    } else {
-      const item: Material = { 
-        ...form as Material, 
-        id: Math.random().toString(36).substr(2, 9), 
-        category: form.category || 'Geral' 
-      };
-      setMaterials([item, ...materials]);
-    }
+    const item: Material = { 
+      ...form as Material, 
+      id: editingMaterial?.id || Math.random().toString(36).substr(2, 9), 
+      category: form.category || 'Geral' 
+    };
+    
+    onSave(item);
     resetForm();
-  };
-
-  const handleDelete = (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este material?')) {
-      setMaterials(prev => prev.filter(m => m.id !== id));
-    }
   };
 
   const formatCurrency = (value: number) => {
@@ -59,7 +52,6 @@ const MaterialList: React.FC<MaterialListProps> = ({ materials, setMaterials }) 
         </div>
         
         <div className="flex items-center gap-3">
-          {/* Seletor de Layout */}
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
             <button 
               onClick={() => setLayoutMode('list')}
@@ -151,31 +143,23 @@ const MaterialList: React.FC<MaterialListProps> = ({ materials, setMaterials }) 
                     <button 
                       onClick={() => handleOpenEdit(m)}
                       className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all"
-                      title="Editar"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                     </button>
                     <button 
-                      onClick={() => handleDelete(m.id)}
+                      onClick={() => { if(window.confirm('Excluir material?')) onDelete(m.id); }}
                       className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-all"
-                      title="Excluir"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                     </button>
                   </div>
                 </div>
-                
                 <h3 className="font-bold text-lg text-slate-800 dark:text-white">{m.name}</h3>
                 <p className="text-xs text-slate-400 uppercase font-black tracking-widest mt-1">{m.category}</p>
-                
                 <div className="mt-6 flex items-baseline gap-1">
                   <span className="text-sm font-bold text-slate-400">R$</span>
                   <span className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">{m.basePrice.toFixed(2)}</span>
                   <span className="text-xs font-bold text-slate-400 uppercase">/ {m.unit}</span>
-                </div>
-
-                <div className="absolute -right-2 -bottom-2 opacity-[0.03] dark:opacity-[0.05] group-hover:scale-110 transition-transform pointer-events-none">
-                   <svg className="w-24 h-24" fill="currentColor" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
                 </div>
               </div>
             ))}
@@ -187,8 +171,6 @@ const MaterialList: React.FC<MaterialListProps> = ({ materials, setMaterials }) 
                 <thead className="bg-slate-50/50 dark:bg-slate-800/20">
                   <tr>
                     <th className="px-6 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider">Material</th>
-                    <th className="px-6 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider">Categoria</th>
-                    <th className="px-6 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider">Preço Base</th>
                     <th className="px-6 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider text-center">Ações</th>
                   </tr>
                 </thead>
@@ -197,37 +179,16 @@ const MaterialList: React.FC<MaterialListProps> = ({ materials, setMaterials }) 
                     <tr key={m.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg flex items-center justify-center">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-                          </div>
                           <span className="font-bold text-slate-700 dark:text-slate-200">{m.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
-                          {m.category}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{formatCurrency(m.basePrice)}</span>
-                          <span className="text-[10px] text-slate-400 uppercase font-bold">/ {m.unit}</span>
+                          <span className="text-[10px] text-slate-400 uppercase font-bold">{formatCurrency(m.basePrice)} / {m.unit}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
-                          <button 
-                            onClick={() => handleOpenEdit(m)}
-                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all"
-                            title="Editar"
-                          >
+                          <button onClick={() => handleOpenEdit(m)} className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                           </button>
-                          <button 
-                            onClick={() => handleDelete(m.id)}
-                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-all"
-                            title="Excluir"
-                          >
+                          <button onClick={() => { if(window.confirm('Excluir?')) onDelete(m.id); }} className="p-2 text-slate-400 hover:text-rose-600 rounded-lg">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                           </button>
                         </div>
@@ -240,12 +201,9 @@ const MaterialList: React.FC<MaterialListProps> = ({ materials, setMaterials }) 
           </div>
         )
       ) : (
-        <div className="col-span-full py-20 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
-          <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-          </div>
+        <div className="py-20 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 shadow-sm">
           <p className="text-slate-500 font-medium">Nenhum material cadastrado.</p>
-          <button onClick={() => setShowForm(true)} className="mt-4 text-indigo-600 dark:text-indigo-400 font-bold hover:underline text-sm">Cadastrar material agora →</button>
+          <button onClick={() => setShowForm(true)} className="mt-4 text-indigo-600 font-bold hover:underline text-sm">Cadastrar agora →</button>
         </div>
       )}
     </div>

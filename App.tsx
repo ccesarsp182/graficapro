@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Order, OrderStatus, Budget, Material, Designer, User } from './types';
+import { supabase } from './supabase';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import OrderList from './components/OrderList';
@@ -14,10 +15,8 @@ import LandingPage from './components/LandingPage';
 type View = 'dashboard' | 'list' | 'add' | 'budgets' | 'materials' | 'designers' | 'financial';
 
 const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('graficapro_current_user');
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   
   const [orders, setOrders] = useState<Order[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -32,41 +31,53 @@ const App: React.FC = () => {
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
 
-  // Carregar dados específicos do usuário logado
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setCurrentUser({
+          id: session.user.id,
+          name: session.user.user_metadata.name || 'Usuário',
+          email: session.user.email || '',
+          avatar: session.user.user_metadata.avatar_url
+        });
+      }
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setCurrentUser({
+          id: session.user.id,
+          name: session.user.user_metadata.name || 'Usuário',
+          email: session.user.email || '',
+          avatar: session.user.user_metadata.avatar_url
+        });
+      } else {
+        setCurrentUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   useEffect(() => {
     if (currentUser) {
-      const load = (key: string, setter: any) => {
-        const saved = localStorage.getItem(`user_${currentUser.id}_${key}`);
-        setter(saved ? JSON.parse(saved) : []);
+      const fetchData = async () => {
+        const [oRes, bRes, mRes, dRes] = await Promise.all([
+          supabase.from('orders').select('*').order('date', { ascending: false }),
+          supabase.from('budgets').select('*').order('date', { ascending: false }),
+          supabase.from('materials').select('*').order('name', { ascending: true }),
+          supabase.from('designers').select('*').order('name', { ascending: true })
+        ]);
+
+        if (!oRes.error) setOrders(oRes.data || []);
+        if (!bRes.error) setBudgets(bRes.data || []);
+        if (!mRes.error) setMaterials(mRes.data || []);
+        if (!dRes.error) setDesigners(dRes.data || []);
       };
-      load('orders', setOrders);
-      load('budgets', setBudgets);
-      load('materials', setMaterials);
-      load('designers', setDesigners);
-    } else {
-      setOrders([]);
-      setBudgets([]);
-      setMaterials([]);
-      setDesigners([]);
+      fetchData();
     }
   }, [currentUser]);
-
-  // Sincronizar dados específicos do usuário
-  useEffect(() => { 
-    if (currentUser) localStorage.setItem(`user_${currentUser.id}_orders`, JSON.stringify(orders)); 
-  }, [orders, currentUser]);
-  
-  useEffect(() => { 
-    if (currentUser) localStorage.setItem(`user_${currentUser.id}_budgets`, JSON.stringify(budgets)); 
-  }, [budgets, currentUser]);
-  
-  useEffect(() => { 
-    if (currentUser) localStorage.setItem(`user_${currentUser.id}_materials`, JSON.stringify(materials)); 
-  }, [materials, currentUser]);
-  
-  useEffect(() => { 
-    if (currentUser) localStorage.setItem(`user_${currentUser.id}_designers`, JSON.stringify(designers)); 
-  }, [designers, currentUser]);
 
   useEffect(() => {
     if (isDarkMode) document.documentElement.classList.add('dark');
@@ -85,19 +96,32 @@ const App: React.FC = () => {
     pendingBudgets: budgets.filter(b => b.status === 'Aguardando').length
   }), [activeOrders, budgets]);
 
-  const handleLogin = (user: User) => {
-    setCurrentUser(user);
-    localStorage.setItem('graficapro_current_user', JSON.stringify(user));
-    setView('dashboard');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setCurrentUser(null);
   };
 
-  const handleLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('graficapro_current_user');
+  // Funções de Sincronização Genéricas
+  const syncEntity = async (table: string, item: any, setState: Function, isDelete = false) => {
+    if (isDelete) {
+      const { error } = await supabase.from(table).delete().eq('id', item.id);
+      if (!error) setState((prev: any[]) => prev.filter(i => i.id !== item.id));
+    } else {
+      const payload = { ...item, user_id: currentUser?.id };
+      const { error } = await supabase.from(table).upsert(payload);
+      if (!error) {
+        setState((prev: any[]) => {
+          const exists = prev.find(i => i.id === item.id);
+          return exists ? prev.map(i => i.id === item.id ? item : i) : [item, ...prev];
+        });
+      }
+    }
   };
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center dark:bg-slate-950"><div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div></div>;
 
   if (!currentUser) {
-    return <LandingPage onAuthSuccess={handleLogin} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} />;
+    return <LandingPage onAuthSuccess={(user) => setCurrentUser(user)} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} />;
   }
 
   return (
@@ -115,31 +139,43 @@ const App: React.FC = () => {
       <main className="flex-1 p-4 md:p-8 lg:p-12">
         <div className="max-w-7xl mx-auto pt-4">
           {view === 'dashboard' && <Dashboard stats={stats} orders={activeOrders.slice(0, 5)} onViewAll={() => setView('list')} />}
+          
           {view === 'list' && (
             <OrderList 
               orders={orders} 
               designers={designers}
-              onDelete={id => setOrders(prev => prev.filter(o => o.id !== id))} 
+              onDelete={id => syncEntity('orders', { id }, setOrders, true)} 
               onEdit={order => { setEditingOrder(order); setView('add'); }} 
-              onUpdateStatus={(id, s) => setOrders(prev => prev.map(o => o.id === id ? {...o, status: s} : o))}
-              onArchive={id => setOrders(prev => prev.map(o => o.id === id ? { ...o, archived: true } : o))}
-              onRestore={id => setOrders(prev => prev.map(o => o.id === id ? { ...o, archived: false } : o))}
-              onArchiveAllDelivered={() => {
-                const count = activeOrders.filter(o => o.status === OrderStatus.DELIVERED).length;
-                if (count > 0 && window.confirm(`Deseja arquivar todos os ${count} pedidos entregues?`)) {
-                  setOrders(prev => prev.map(o => (o.status === OrderStatus.DELIVERED && !o.archived) ? { ...o, archived: true } : o));
+              onUpdateStatus={(id, s) => {
+                const order = orders.find(o => o.id === id);
+                if (order) syncEntity('orders', {...order, status: s}, setOrders);
+              }}
+              onArchive={id => {
+                const order = orders.find(o => o.id === id);
+                if (order) syncEntity('orders', {...order, archived: true}, setOrders);
+              }}
+              onRestore={id => {
+                const order = orders.find(o => o.id === id);
+                if (order) syncEntity('orders', {...order, archived: false}, setOrders);
+              }}
+              onArchiveAllDelivered={async () => {
+                const delivered = orders.filter(o => o.status === OrderStatus.DELIVERED && !o.archived);
+                if (delivered.length > 0 && window.confirm(`Deseja arquivar ${delivered.length} pedidos?`)) {
+                  const updates = delivered.map(o => ({ ...o, archived: true, user_id: currentUser.id }));
+                  await supabase.from('orders').upsert(updates);
+                  setOrders(prev => prev.map(o => o.status === OrderStatus.DELIVERED ? {...o, archived: true} : o));
                 }
               }}
               onAddNew={() => setView('add')}
             />
           )}
+
           {view === 'add' && (
             <OrderForm 
               designers={designers}
               materials={materials}
               onSave={updated => {
-                if (editingOrder) setOrders(prev => prev.map(o => o.id === updated.id ? updated : o));
-                else setOrders(prev => [updated, ...prev]);
+                syncEntity('orders', updated, setOrders);
                 setEditingOrder(null);
                 setView('list');
               }} 
@@ -147,11 +183,13 @@ const App: React.FC = () => {
               onCancel={() => { setEditingOrder(null); setView('list'); }}
             />
           )}
+
           {view === 'budgets' && (
             <BudgetList 
               budgets={budgets} 
-              setBudgets={setBudgets} 
-              onConvertToOrder={(b) => {
+              onSave={b => syncEntity('budgets', b, setBudgets)}
+              onDelete={id => syncEntity('budgets', { id }, setBudgets, true)}
+              onConvertToOrder={async (b) => {
                 const newOrder: Order = { 
                   id: Math.random().toString(36).substr(2, 9),
                   date: new Date().toISOString().split('T')[0],
@@ -167,14 +205,30 @@ const App: React.FC = () => {
                   status: OrderStatus.PENDING,
                   archived: false
                 };
-                setOrders(prev => [newOrder, ...prev]);
-                setBudgets(prev => prev.map(item => item.id === b.id ? {...item, status: 'Aprovado' as any} : item));
+                await syncEntity('orders', newOrder, setOrders);
+                const updatedBudget = { ...b, status: 'Aprovado' as any };
+                await syncEntity('budgets', updatedBudget, setBudgets);
                 setView('list');
               }}
             />
           )}
-          {view === 'materials' && <MaterialList materials={materials} setMaterials={setMaterials} />}
-          {view === 'designers' && <DesignerList designers={designers} setDesigners={setDesigners} />}
+
+          {view === 'materials' && (
+            <MaterialList 
+              materials={materials} 
+              onSave={m => syncEntity('materials', m, setMaterials)}
+              onDelete={id => syncEntity('materials', { id }, setMaterials, true)}
+            />
+          )}
+
+          {view === 'designers' && (
+            <DesignerList 
+              designers={designers} 
+              onSave={d => syncEntity('designers', d, setDesigners)}
+              onDelete={id => syncEntity('designers', { id }, setDesigners, true)}
+            />
+          )}
+
           {view === 'financial' && <FinancialControl orders={orders} />}
         </div>
       </main>

@@ -4,11 +4,12 @@ import { Budget, BudgetStatus } from '../types';
 
 interface BudgetListProps {
   budgets: Budget[];
-  setBudgets: React.Dispatch<React.SetStateAction<Budget[]>>;
+  onSave: (budget: Budget) => void;
+  onDelete: (id: string) => void;
   onConvertToOrder: (budget: Budget) => void;
 }
 
-const BudgetList: React.FC<BudgetListProps> = ({ budgets, setBudgets, onConvertToOrder }) => {
+const BudgetList: React.FC<BudgetListProps> = ({ budgets, onSave, onDelete, onConvertToOrder }) => {
   const [showAdd, setShowAdd] = useState(false);
   const [formData, setFormData] = useState<Partial<Budget>>({
     clientName: '',
@@ -38,7 +39,7 @@ const BudgetList: React.FC<BudgetListProps> = ({ budgets, setBudgets, onConvertT
       status: BudgetStatus.WAITING
     };
 
-    setBudgets([budget, ...budgets]);
+    onSave(budget);
     setShowAdd(false);
     setFormData({
       clientName: '',
@@ -254,7 +255,9 @@ const BudgetList: React.FC<BudgetListProps> = ({ budgets, setBudgets, onConvertT
                 )}
 
                 <button 
-                  onClick={() => setBudgets(budgets.filter(item => item.id !== b.id))}
+                  onClick={() => {
+                    if(window.confirm('Excluir este orçamento?')) onDelete(b.id);
+                  }}
                   className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
                   title="Excluir Orçamento"
                 >
