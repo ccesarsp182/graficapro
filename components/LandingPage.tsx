@@ -36,6 +36,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess, isDarkMode, to
         });
 
         if (signUpError) throw signUpError;
+        
+        // Se o email_confirmed_at for nulo e não houver erro, o Supabase enviou um e-mail de confirmação
+        if (data.user && !data.session) {
+          setError('E-mail de confirmação enviado! Verifique sua caixa de entrada para ativar sua conta.');
+          setIsAuthenticating(false);
+          return;
+        }
+
         if (data.user) {
           onAuthSuccess({
             id: data.user.id,
@@ -59,7 +67,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess, isDarkMode, to
         }
       }
     } catch (err: any) {
-      setError(err.message || 'Erro na autenticação.');
+      console.error('Erro de Autenticação:', err);
+      let message = err.message || 'Erro na autenticação.';
+      
+      // Tratamento específico para o erro de limite de e-mail do Supabase
+      if (message.includes('rate limit exceeded')) {
+        message = 'Limite de e-mails atingido! O Supabase permite apenas 3 novos cadastros por hora. Aguarde um momento ou desative a "Confirmação de E-mail" no painel do Supabase para testes.';
+      } else if (message.includes('Invalid login credentials')) {
+        message = 'E-mail ou senha incorretos.';
+      } else if (message.includes('User already registered')) {
+        message = 'Este e-mail já está cadastrado. Tente fazer login.';
+      }
+      
+      setError(message);
     } finally {
       setIsAuthenticating(false);
     }
@@ -149,7 +169,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess, isDarkMode, to
                 </div>
               </div>
 
-              {error && <p className="text-rose-500 text-xs font-bold text-center mt-2">{error}</p>}
+              {error && (
+                <div className={`p-4 rounded-2xl text-xs font-bold text-center mt-2 ${error.includes('enviado') ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-500 border border-rose-100'}`}>
+                  {error}
+                </div>
+              )}
 
               <button 
                 type="submit"
