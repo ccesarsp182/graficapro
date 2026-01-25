@@ -54,6 +54,10 @@ const App: React.FC = () => {
         });
       } else {
         setCurrentUser(null);
+        setOrders([]);
+        setBudgets([]);
+        setMaterials([]);
+        setDesigners([]);
       }
     });
 
@@ -63,17 +67,32 @@ const App: React.FC = () => {
   useEffect(() => {
     if (currentUser) {
       const fetchData = async () => {
-        const [oRes, bRes, mRes, dRes] = await Promise.all([
-          supabase.from('orders').select('*').order('date', { ascending: false }),
-          supabase.from('budgets').select('*').order('date', { ascending: false }),
-          supabase.from('materials').select('*').order('name', { ascending: true }),
-          supabase.from('designers').select('*').order('name', { ascending: true })
-        ]);
+        const uid = currentUser.id;
+        try {
+          const [oRes, bRes, mRes, dRes] = await Promise.all([
+            supabase.from('orders').select('*').eq('user_id', uid).order('date', { ascending: false }),
+            supabase.from('budgets').select('*').eq('user_id', uid).order('date', { ascending: false }),
+            supabase.from('materials').select('*').eq('user_id', uid).order('name', { ascending: true }),
+            supabase.from('designers').select('*').eq('user_id', uid).order('name', { ascending: true })
+          ]);
 
-        if (!oRes.error) setOrders(oRes.data || []);
-        if (!bRes.error) setBudgets(bRes.data || []);
-        if (!mRes.error) setMaterials(mRes.data || []);
-        if (!dRes.error) setDesigners(dRes.data || []);
+          if (oRes.error) throw oRes.error;
+          if (bRes.error) throw bRes.error;
+          if (mRes.error) throw mRes.error;
+          if (dRes.error) throw dRes.error;
+
+          setOrders(oRes.data || []);
+          setBudgets(bRes.data || []);
+          setMaterials(mRes.data || []);
+          setDesigners(dRes.data || []);
+        } catch (err: any) {
+          console.error("Erro ao buscar dados:", err);
+          if (err.code === '42P01') {
+            alert("Atenção: As tabelas do banco de dados ainda não foram criadas no Supabase. Execute o script SQL de configuração.");
+          } else if (err.code === '42501') {
+            alert("Erro de permissão: RLS bloqueou o acesso. Verifique se as políticas de segurança foram criadas no Supabase.");
+          }
+        }
       };
       fetchData();
     }
@@ -101,24 +120,45 @@ const App: React.FC = () => {
     setCurrentUser(null);
   };
 
-  // Funções de Sincronização Genéricas
   const syncEntity = async (table: string, item: any, setState: Function, isDelete = false) => {
-    if (isDelete) {
-      const { error } = await supabase.from(table).delete().eq('id', item.id);
-      if (!error) setState((prev: any[]) => prev.filter(i => i.id !== item.id));
-    } else {
-      const payload = { ...item, user_id: currentUser?.id };
-      const { error } = await supabase.from(table).upsert(payload);
-      if (!error) {
+    if (!currentUser) {
+      alert("Sessão expirada. Por favor, faça login novamente.");
+      return;
+    }
+    
+    try {
+      if (isDelete) {
+        const { error } = await supabase
+          .from(table)
+          .delete()
+          .eq('id', item.id)
+          .eq('user_id', currentUser.id);
+        
+        if (error) throw error;
+        setState((prev: any[]) => prev.filter(i => i.id !== item.id));
+      } else {
+        const payload = { ...item, user_id: currentUser.id };
+        const { error } = await supabase.from(table).upsert(payload);
+        
+        if (error) throw error;
         setState((prev: any[]) => {
           const exists = prev.find(i => i.id === item.id);
           return exists ? prev.map(i => i.id === item.id ? item : i) : [item, ...prev];
         });
       }
+    } catch (err: any) {
+      console.error(`Erro em ${table}:`, err);
+      if (err.code === '42P01') {
+        alert(`Erro crítico: Tabela '${table}' ausente. Execute o SQL de instalação.`);
+      } else if (err.code === '42501') {
+        alert("Ação negada: Você não tem permissão para alterar este registro (RLS Violado).");
+      } else {
+        alert(`Erro ao sincronizar: ${err.message}`);
+      }
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center dark:bg-slate-950"><div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center dark:bg-slate-950 transition-colors"><div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div></div>;
 
   if (!currentUser) {
     return <LandingPage onAuthSuccess={(user) => setCurrentUser(user)} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} />;
@@ -151,7 +191,7 @@ const App: React.FC = () => {
                 if (order) syncEntity('orders', {...order, status: s}, setOrders);
               }}
               onArchive={id => {
-                const order = orders.find(o => o.id === id);
+                const order = order = orders.find(o => o.id === id);
                 if (order) syncEntity('orders', {...order, archived: true}, setOrders);
               }}
               onRestore={id => {
@@ -162,8 +202,12 @@ const App: React.FC = () => {
                 const delivered = orders.filter(o => o.status === OrderStatus.DELIVERED && !o.archived);
                 if (delivered.length > 0 && window.confirm(`Deseja arquivar ${delivered.length} pedidos?`)) {
                   const updates = delivered.map(o => ({ ...o, archived: true, user_id: currentUser.id }));
-                  await supabase.from('orders').upsert(updates);
-                  setOrders(prev => prev.map(o => o.status === OrderStatus.DELIVERED ? {...o, archived: true} : o));
+                  const { error } = await supabase.from('orders').upsert(updates);
+                  if (!error) {
+                    setOrders(prev => prev.map(o => o.status === OrderStatus.DELIVERED ? {...o, archived: true} : o));
+                  } else {
+                    alert("Erro ao arquivar pedidos: " + error.message);
+                  }
                 }
               }}
               onAddNew={() => setView('add')}
@@ -178,19 +222,22 @@ const App: React.FC = () => {
                 syncEntity('orders', updated, setOrders);
                 setEditingOrder(null);
                 setView('list');
-              }} 
+              }}
+              onCancel={() => {
+                setEditingOrder(null);
+                setView('list');
+              }}
               initialData={editingOrder}
-              onCancel={() => { setEditingOrder(null); setView('list'); }}
             />
           )}
 
           {view === 'budgets' && (
             <BudgetList 
-              budgets={budgets} 
+              budgets={budgets}
               onSave={b => syncEntity('budgets', b, setBudgets)}
               onDelete={id => syncEntity('budgets', { id }, setBudgets, true)}
-              onConvertToOrder={async (b) => {
-                const newOrder: Order = { 
+              onConvertToOrder={b => {
+                const newOrder: Order = {
                   id: Math.random().toString(36).substr(2, 9),
                   date: new Date().toISOString().split('T')[0],
                   clientName: b.clientName,
@@ -199,23 +246,21 @@ const App: React.FC = () => {
                   measurements: b.measurements,
                   quantity: b.quantity,
                   color: '',
-                  additionalInfo: `${b.notes || ''}\nEmail: ${b.email || 'N/A'}`,
+                  additionalInfo: b.notes,
                   entryValue: 0,
                   remainingValue: b.totalValue,
                   status: OrderStatus.PENDING,
-                  archived: false
+                  attachments: []
                 };
-                await syncEntity('orders', newOrder, setOrders);
-                const updatedBudget = { ...b, status: 'Aprovado' as any };
-                await syncEntity('budgets', updatedBudget, setBudgets);
-                setView('list');
+                setEditingOrder(newOrder);
+                setView('add');
               }}
             />
           )}
 
           {view === 'materials' && (
             <MaterialList 
-              materials={materials} 
+              materials={materials}
               onSave={m => syncEntity('materials', m, setMaterials)}
               onDelete={id => syncEntity('materials', { id }, setMaterials, true)}
             />
@@ -223,7 +268,7 @@ const App: React.FC = () => {
 
           {view === 'designers' && (
             <DesignerList 
-              designers={designers} 
+              designers={designers}
               onSave={d => syncEntity('designers', d, setDesigners)}
               onDelete={id => syncEntity('designers', { id }, setDesigners, true)}
             />
@@ -236,4 +281,5 @@ const App: React.FC = () => {
   );
 };
 
+// Fix for index.tsx: Module has no default export
 export default App;
