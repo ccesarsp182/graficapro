@@ -37,7 +37,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess, isDarkMode, to
 
         if (signUpError) throw signUpError;
         
-        // Se o email_confirmed_at for nulo e não houver erro, o Supabase enviou um e-mail de confirmação
         if (data.user && !data.session) {
           setError('E-mail de confirmação enviado! Verifique sua caixa de entrada para ativar sua conta.');
           setIsAuthenticating(false);
@@ -70,7 +69,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess, isDarkMode, to
       console.error('Erro de Autenticação:', err);
       let message = err.message || 'Erro na autenticação.';
       
-      // Tratamento específico para o erro de limite de e-mail do Supabase
       if (message.includes('rate limit exceeded')) {
         message = 'Limite de e-mails atingido! O Supabase permite apenas 3 novos cadastros por hora. Aguarde um momento ou desative a "Confirmação de E-mail" no painel do Supabase para testes.';
       } else if (message.includes('Invalid login credentials')) {
@@ -214,22 +212,51 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess, isDarkMode, to
       </nav>
 
       <main className="pt-32 pb-20 px-6 md:px-12">
-        <div className="max-w-5xl mx-auto text-center space-y-8">
-          <div className="inline-block px-4 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-full text-xs font-black uppercase tracking-widest animate-slideDown">
-            Integração com Supabase Habilitada
+        <div className="max-w-5xl mx-auto text-center space-y-10">
+          <div className="inline-block px-4 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-black uppercase tracking-widest animate-slideDown">
+            O SISTEMA #1 PARA GRÁFICAS E COMUNICADORES VISUAIS
           </div>
+          
           <h1 className="text-5xl md:text-7xl font-black text-slate-900 dark:text-white leading-[1.1] tracking-tight animate-slideDown">
-            Gerencie sua gráfica com <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">banco de dados real.</span>
+            Transforme sua Desordem em <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">Lucro e Organização.</span>
           </h1>
-          <p className="text-lg text-slate-500 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed animate-slideDown">
-            Seus dados agora estão seguros e sincronizados no Supabase. Acesse de qualquer lugar, gerencie orçamentos e pedidos com persistência garantida.
+          
+          <p className="text-lg md:text-xl text-slate-500 dark:text-slate-400 max-w-3xl mx-auto leading-relaxed animate-slideDown">
+            Abandone os papéis e planilhas confusas. Gerencie orçamentos, acompanhe a produção em tempo real e tenha controle financeiro total da sua gráfica em uma única plataforma elegante.
           </p>
+          
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6 animate-slideDown">
             <button onClick={() => openModal('signup')} className="group px-8 py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-2xl hover:bg-indigo-700 transition-all active:scale-95 flex items-center gap-3">
-              Criar Conta Gratuita
+              Começar Agora Gratuitamente
               <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
             </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-16 animate-fadeIn">
+            <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all text-left">
+              <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mb-4">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              </div>
+              <h3 className="font-black text-slate-800 dark:text-white text-lg">Organização de Pedidos</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">Nunca mais perca um prazo. Acompanhe cada etapa da produção, do pedido à entrega final.</p>
+            </div>
+            
+            <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all text-left">
+              <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mb-4">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              </div>
+              <h3 className="font-black text-slate-800 dark:text-white text-lg">Controle de Pagamentos</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">Saiba exatamente quem pagou e quem está devendo. Monitore suas entradas e garanta seu lucro.</p>
+            </div>
+            
+            <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all text-left">
+              <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mb-4">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              </div>
+              <h3 className="font-black text-slate-800 dark:text-white text-lg">Central de Arquivos</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">Anexe as artes diretamente aos pedidos. Chega de procurar arquivos perdidos em e-mails ou WhatsApp.</p>
+            </div>
           </div>
         </div>
       </main>
