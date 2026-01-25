@@ -70,10 +70,10 @@ const App: React.FC = () => {
         const uid = currentUser.id;
         try {
           const [oRes, bRes, mRes, dRes] = await Promise.all([
-            supabase.from('orders').select('*').eq('user_id', uid).order('date', { ascending: false }),
-            supabase.from('budgets').select('*').eq('user_id', uid).order('date', { ascending: false }),
-            supabase.from('materials').select('*').eq('user_id', uid).order('name', { ascending: true }),
-            supabase.from('designers').select('*').eq('user_id', uid).order('name', { ascending: true })
+            supabase.from('orders').select('*').order('date', { ascending: false }),
+            supabase.from('budgets').select('*').order('date', { ascending: false }),
+            supabase.from('materials').select('*').order('name', { ascending: true }),
+            supabase.from('designers').select('*').order('name', { ascending: true })
           ]);
 
           if (oRes.error) throw oRes.error;
@@ -88,9 +88,7 @@ const App: React.FC = () => {
         } catch (err: any) {
           console.error("Erro ao buscar dados:", err);
           if (err.code === '42P01') {
-            alert("Atenção: As tabelas do banco de dados ainda não foram criadas no Supabase. Execute o script SQL de configuração.");
-          } else if (err.code === '42501') {
-            alert("Erro de permissão: RLS bloqueou o acesso. Verifique se as políticas de segurança foram criadas no Supabase.");
+            alert("Atenção: Tabelas não encontradas. Execute o script SQL no editor do Supabase.");
           }
         }
       };
@@ -120,11 +118,15 @@ const App: React.FC = () => {
     setCurrentUser(null);
   };
 
-  const syncEntity = async (table: string, item: any, setState: Function, isDelete = false) => {
-    if (!currentUser) {
-      alert("Sessão expirada. Por favor, faça login novamente.");
+  const syncEntity = async (table: string, item: any, setState: React.Dispatch<React.SetStateAction<any[]>>, isDelete = false) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      alert("Sessão expirada. Entre novamente.");
+      setCurrentUser(null);
       return;
     }
+
+    const currentUserId = session.user.id;
     
     try {
       if (isDelete) {
@@ -132,28 +134,31 @@ const App: React.FC = () => {
           .from(table)
           .delete()
           .eq('id', item.id)
-          .eq('user_id', currentUser.id);
+          .eq('user_id', currentUserId);
         
         if (error) throw error;
         setState((prev: any[]) => prev.filter(i => i.id !== item.id));
       } else {
-        const payload = { ...item, user_id: currentUser.id };
-        const { error } = await supabase.from(table).upsert(payload);
+        // Garantimos que o payload contenha o user_id do usuário logado
+        const payload = { ...item, user_id: currentUserId };
+        
+        const { error } = await supabase
+          .from(table)
+          .upsert(payload, { onConflict: 'id' });
         
         if (error) throw error;
+        
         setState((prev: any[]) => {
           const exists = prev.find(i => i.id === item.id);
           return exists ? prev.map(i => i.id === item.id ? item : i) : [item, ...prev];
         });
       }
     } catch (err: any) {
-      console.error(`Erro em ${table}:`, err);
-      if (err.code === '42P01') {
-        alert(`Erro crítico: Tabela '${table}' ausente. Execute o SQL de instalação.`);
-      } else if (err.code === '42501') {
-        alert("Ação negada: Você não tem permissão para alterar este registro (RLS Violado).");
+      console.error(`Erro RLS em ${table}:`, err);
+      if (err.code === '42501') {
+        alert("Ação negada: Você não tem permissão para alterar este registro ou as políticas de segurança (RLS) não foram aplicadas corretamente no Supabase.");
       } else {
-        alert(`Erro ao sincronizar: ${err.message}`);
+        alert(`Erro de sincronização: ${err.message}`);
       }
     }
   };
@@ -206,7 +211,7 @@ const App: React.FC = () => {
                   if (!error) {
                     setOrders(prev => prev.map(o => o.status === OrderStatus.DELIVERED ? {...o, archived: true} : o));
                   } else {
-                    alert("Erro ao arquivar pedidos: " + error.message);
+                    alert("Erro ao arquivar: " + error.message);
                   }
                 }
               }}
@@ -250,7 +255,8 @@ const App: React.FC = () => {
                   entryValue: 0,
                   remainingValue: b.totalValue,
                   status: OrderStatus.PENDING,
-                  attachments: []
+                  attachments: [],
+                  archived: false
                 };
                 setEditingOrder(newOrder);
                 setView('add');
