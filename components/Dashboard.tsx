@@ -13,6 +13,17 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, orders, onViewAll }) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
+  // Função segura para formatar data local
+  const formatDisplayDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    return new Date(year, month, day).toLocaleDateString('pt-BR');
+  };
+
   const statCards = [
     { label: 'Pedidos Ativos', value: stats.totalOrders, color: 'indigo', icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg> },
     { label: 'Pendentes', value: stats.pendingCount, color: 'amber', icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> },
@@ -65,7 +76,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, orders, onViewAll }) => {
                   <tr key={order.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group">
                     <td className="py-4">
                       <p className="font-bold text-slate-800 dark:text-slate-200 text-sm group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{order.clientName}</p>
-                      <p className="text-xs text-slate-400">{order.date}</p>
+                      <p className="text-xs text-slate-400">{formatDisplayDate(order.date)}</p>
                     </td>
                     <td className="py-4 text-sm text-slate-600 dark:text-slate-400">{order.materialType}</td>
                     <td className="py-4 font-bold text-sm text-slate-800 dark:text-slate-200">{formatCurrency(order.remainingValue)}</td>

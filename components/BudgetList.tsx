@@ -60,6 +60,17 @@ const BudgetList: React.FC<BudgetListProps> = ({ budgets, onSave, onDelete, onCo
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
+  // Função para formatar data sem deslocamento de UTC
+  const formatDisplayDate = (dateStr: string) => {
+    if (!dateStr) return 'N/A';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    return new Date(year, month, day).toLocaleDateString('pt-BR');
+  };
+
   const sendWhatsApp = (b: Budget) => {
     const cleanPhone = b.phone.replace(/\D/g, '');
     const message = `Olá *${b.clientName}*! Segue o seu orçamento da *GráficaPro*:%0A%0A` +
@@ -68,7 +79,7 @@ const BudgetList: React.FC<BudgetListProps> = ({ budgets, onSave, onDelete, onCo
       `*Quantidade:* ${b.quantity}%0A` +
       `*Valor Total:* ${formatCurrency(b.totalValue)}%0A` +
       (b.deliveryDeadline ? `*Prazo de Entrega:* ${b.deliveryDeadline}%0A` : '') +
-      (b.validUntil ? `*Válido até:* ${new Date(b.validUntil).toLocaleDateString('pt-BR')}%0A` : '') +
+      (b.validUntil ? `*Válido até:* ${formatDisplayDate(b.validUntil)}%0A` : '') +
       (b.notes ? `%0A*Obs:* ${b.notes}%0A` : '') +
       `%0AFicamos no aguardo da sua aprovação!`;
 
@@ -231,7 +242,7 @@ const BudgetList: React.FC<BudgetListProps> = ({ budgets, onSave, onDelete, onCo
             <div className="flex items-center gap-3">
               <div className="text-right hidden md:block">
                 <p className="text-[10px] text-slate-400 uppercase font-bold">Validade</p>
-                <p className="text-xs font-medium dark:text-slate-300">{b.validUntil ? new Date(b.validUntil).toLocaleDateString('pt-BR') : 'N/A'}</p>
+                <p className="text-xs font-medium dark:text-slate-300">{formatDisplayDate(b.validUntil)}</p>
               </div>
               
               <div className="flex items-center gap-2">
