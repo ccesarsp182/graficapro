@@ -85,6 +85,8 @@ const OrderList: React.FC<OrderListProps> = ({
         return 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400';
       case OrderStatus.IN_PROCESS:
         return 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400';
+      case OrderStatus.APPROVED:
+        return 'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400';
       case OrderStatus.DELIVERED:
         return 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400';
       default:
@@ -211,7 +213,7 @@ const OrderList: React.FC<OrderListProps> = ({
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
         <div className="p-4 border-b border-slate-50 dark:border-slate-800 flex flex-col xl:flex-row gap-4 items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
           <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto flex-1">
-            <div className="relative flex-1 max-w-md">
+            <div className="relative flex-1 max-md">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
               </span>

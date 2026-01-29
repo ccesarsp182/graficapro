@@ -2,6 +2,7 @@
 export enum OrderStatus {
   PENDING = 'Pendente',
   IN_PROCESS = 'Em Processo',
+  APPROVED = 'Aprovado',
   DELIVERED = 'Entregue'
 }
 
@@ -80,6 +81,7 @@ export interface DashboardStats {
   totalOrders: number;
   pendingCount: number;
   inProcessCount: number;
+  approvedCount: number;
   deliveredCount: number;
   totalRevenue: number;
   pendingBudgets: number;

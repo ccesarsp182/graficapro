@@ -108,6 +108,7 @@ const App: React.FC = () => {
     totalOrders: activeOrders.length,
     pendingCount: activeOrders.filter(o => o.status === OrderStatus.PENDING).length,
     inProcessCount: activeOrders.filter(o => o.status === OrderStatus.IN_PROCESS).length,
+    approvedCount: activeOrders.filter(o => o.status === OrderStatus.APPROVED).length,
     deliveredCount: activeOrders.filter(o => o.status === OrderStatus.DELIVERED).length,
     totalRevenue: activeOrders.reduce((acc, curr) => acc + curr.entryValue + curr.remainingValue, 0),
     pendingBudgets: budgets.filter(b => b.status === 'Aguardando').length
