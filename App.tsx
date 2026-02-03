@@ -67,10 +67,9 @@ const App: React.FC = () => {
   useEffect(() => {
     if (currentUser) {
       const fetchData = async () => {
-        const uid = currentUser.id;
         try {
           const [oRes, bRes, mRes, dRes] = await Promise.all([
-            supabase.from('orders').select('*').order('date', { ascending: false }),
+            supabase.from('orders').select('*').order('date', { ascending: true }),
             supabase.from('budgets').select('*').order('date', { ascending: false }),
             supabase.from('materials').select('*').order('name', { ascending: true }),
             supabase.from('designers').select('*').order('name', { ascending: true })
@@ -140,7 +139,6 @@ const App: React.FC = () => {
         if (error) throw error;
         setState((prev: any[]) => prev.filter(i => i.id !== item.id));
       } else {
-        // Garantimos que o payload contenha o user_id do usuário logado
         const payload = { ...item, user_id: currentUserId };
         
         const { error } = await supabase
@@ -151,7 +149,13 @@ const App: React.FC = () => {
         
         setState((prev: any[]) => {
           const exists = prev.find(i => i.id === item.id);
-          return exists ? prev.map(i => i.id === item.id ? item : i) : [item, ...prev];
+          if (exists) {
+            return prev.map(i => i.id === item.id ? item : i);
+          } else {
+            // Se for novo pedido (orders), adiciona ao final para manter ordem cronológica crescente
+            // Para outros, mantém ao final ou ordena conforme necessário
+            return [...prev, item];
+          }
         });
       }
     } catch (err: any) {
